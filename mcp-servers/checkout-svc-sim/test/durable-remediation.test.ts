@@ -17,8 +17,8 @@ import {
 } from '../src/durable-state.js';
 
 const directories: string[] = [];
-const deploySha = 'b9c9167e17ed9e5a1159edcadedf1e5349550dbc';
-const revertSha = '0681dd9e6a6b28cc107cba56887b4ecf77e361b5';
+const deploySha = 'a6590bd60218e83618892a6b97d1a4d598eebb60';
+const revertSha = 'ba8c853fa901e3829e01f1a295a57b797149d50f';
 
 const incident: DurableIncident = {
   id: 'INC-4821',

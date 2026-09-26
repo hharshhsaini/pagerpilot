@@ -500,11 +500,11 @@ function startDemoExecution(
     preErrors: 3,
     postP99Ms: 122.4,
     postErrors: 0,
-    revertSha: '0681dd9e6a6b28cc107cba56887b4ecf77e361b5',
-    remoteSha: '0681dd9e6a6b28cc107cba56887b4ecf77e361b5',
+    revertSha: 'ba8c853fa901e3829e01f1a295a57b797149d50f',
+    remoteSha: 'ba8c853fa901e3829e01f1a295a57b797149d50f',
     testsPassed: true,
     sandboxStopped: true,
-    githubUrl: 'https://github.com/hharshhsaini/pagerpilot-demo/commit/0681dd9e6a6b28cc107cba56887b4ecf77e361b5',
+    githubUrl: 'https://github.com/hharshhsaini/pagerpilot-demo/commit/ba8c853fa901e3829e01f1a295a57b797149d50f',
     linearUrl: 'https://linear.app/elijah-trueforge-20260829/issue/ELI-5/oncall-follow-up-guard-checkout-bulk-write-performance-inc-4821',
   };
   const runNonce = randomUUID();

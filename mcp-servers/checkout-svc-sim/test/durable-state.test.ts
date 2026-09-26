@@ -28,7 +28,7 @@ const incident: DurableIncident = {
 const rollbackInput: RollbackReservationInput = {
   incidentId: 'INC-4821',
   deployId: '9921',
-  deployCommit: 'b9c9167e17ed9e5a1159edcadedf1e5349550dbc',
+  deployCommit: 'a6590bd60218e83618892a6b97d1a4d598eebb60',
   repositoryUrl: 'https://github.com/hharshhsaini/pagerpilot-demo.git',
   branch: 'main',
   requestedBy: 'operator',
@@ -185,7 +185,7 @@ describe('DurableStateStore rollback reservations', () => {
       operationId: reservation.operation.operation_id,
       ownerToken: reservation.operation.owner_token,
       sandboxId: 'sandbox-a',
-      revertSha: '0681dd9e6a6b28cc107cba56887b4ecf77e361b5',
+      revertSha: 'ba8c853fa901e3829e01f1a295a57b797149d50f',
       preEvidence,
       postEvidence,
     });
@@ -196,7 +196,7 @@ describe('DurableStateStore rollback reservations', () => {
     expect(recovered.mode).toBe('recover');
     expect(recovered.operation.status).toBe('prepared');
     expect(recovered.operation.expected_revert_sha).toBe(
-      '0681dd9e6a6b28cc107cba56887b4ecf77e361b5',
+      'ba8c853fa901e3829e01f1a295a57b797149d50f',
     );
     expect(recovered.operation.pre_evidence).toEqual(preEvidence);
     expect(recovered.operation.post_evidence).toEqual(postEvidence);
@@ -212,14 +212,14 @@ describe('DurableStateStore rollback reservations', () => {
       operationId: reservation.operation.operation_id,
       ownerToken: reservation.operation.owner_token,
       sandboxId: 'sandbox-a',
-      revertSha: '0681dd9e6a6b28cc107cba56887b4ecf77e361b5',
+      revertSha: 'ba8c853fa901e3829e01f1a295a57b797149d50f',
       preEvidence,
       postEvidence,
     });
     const applied = store.markRollbackApplied({
       operationId: prepared.operation_id,
       ownerToken: prepared.owner_token,
-      remoteSha: '0681dd9e6a6b28cc107cba56887b4ecf77e361b5',
+      remoteSha: 'ba8c853fa901e3829e01f1a295a57b797149d50f',
       sandboxStopped: true,
     });
     expect(applied.operation.status).toBe('applied');
@@ -228,7 +228,7 @@ describe('DurableStateStore rollback reservations', () => {
     const retry = store.reserveRollback(rollbackInput);
     expect(retry.mode).toBe('already_applied');
     expect(retry.operation.remote_sha).toBe(
-      '0681dd9e6a6b28cc107cba56887b4ecf77e361b5',
+      'ba8c853fa901e3829e01f1a295a57b797149d50f',
     );
     store.close();
   });
@@ -242,14 +242,14 @@ describe('DurableStateStore rollback reservations', () => {
       operationId: reservation.operation.operation_id,
       ownerToken: reservation.operation.owner_token,
       sandboxId: 'sandbox-a',
-      revertSha: '0681dd9e6a6b28cc107cba56887b4ecf77e361b5',
+      revertSha: 'ba8c853fa901e3829e01f1a295a57b797149d50f',
       preEvidence,
       postEvidence,
     });
     const applied = store.markRollbackApplied({
       operationId: prepared.operation_id,
       ownerToken: prepared.owner_token,
-      remoteSha: '0681dd9e6a6b28cc107cba56887b4ecf77e361b5',
+      remoteSha: 'ba8c853fa901e3829e01f1a295a57b797149d50f',
       sandboxStopped: false,
       cleanupError: 'stop unavailable',
     });
@@ -278,7 +278,7 @@ describe('DurableStateStore rollback reservations', () => {
       operationId: reservation.operation.operation_id,
       ownerToken: reservation.operation.owner_token,
       sandboxId: 'sandbox-a',
-      revertSha: '0681dd9e6a6b28cc107cba56887b4ecf77e361b5',
+      revertSha: 'ba8c853fa901e3829e01f1a295a57b797149d50f',
       preEvidence,
       postEvidence,
     });

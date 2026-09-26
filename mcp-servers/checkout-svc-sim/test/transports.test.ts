@@ -206,7 +206,7 @@ describe('MCP transports', () => {
       'db_round_trips_p99',
     );
     expect(resultText(evidenceCalls[2]?.content)).toContain(
-      'b9c9167e17ed9e5a1159edcadedf1e5349550dbc',
+      'a6590bd60218e83618892a6b97d1a4d598eebb60',
     );
     expect(resultText(evidenceCalls[3]?.content)).toContain(
       'for item in items:',

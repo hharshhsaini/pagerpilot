@@ -139,7 +139,7 @@ describe('external action tools', () => {
             status: 'resolved',
             service: 'checkout-svc',
             deploy_id: '9921',
-            commit_sha: 'b9c9167e17ed9e5a1159edcadedf1e5349550dbc',
+            commit_sha: 'a6590bd60218e83618892a6b97d1a4d598eebb60',
             root_cause: 'Serial <per-item> writes caused p99 latency & 503s.',
             recovery: 'Reverted deploy 9921 and verified remote SHA.',
             permanent_fix: 'PR #1 remains open and unmerged.',

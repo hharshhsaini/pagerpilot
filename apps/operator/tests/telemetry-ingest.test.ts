@@ -258,7 +258,7 @@ describe('authoritative telemetry event ingestion', () => {
             error_rate: 0.12,
             p99_ms: 6946.5,
           },
-          revert_sha: '0681dd9e',
+          revert_sha: 'ba8c853f',
           tests_passed: true,
           post_evidence: {
             requests: 25,
@@ -266,7 +266,7 @@ describe('authoritative telemetry event ingestion', () => {
             error_rate: 0,
             p99_ms: 122.4,
           },
-          remote_sha: '0681dd9e',
+          remote_sha: 'ba8c853f',
           sandbox_stopped: true,
         }),
       },
@@ -308,8 +308,8 @@ describe('authoritative telemetry event ingestion', () => {
       recovery: {
         repositoryUrl: 'https://github.com/example/service.git',
         branch: 'main',
-        revertSha: '0681dd9e',
-        remoteSha: '0681dd9e',
+        revertSha: 'ba8c853f',
+        remoteSha: 'ba8c853f',
         testsPassed: true,
         sandboxStopped: true,
       },

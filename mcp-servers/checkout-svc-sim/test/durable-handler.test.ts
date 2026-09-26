@@ -9,7 +9,7 @@ import {
 import { ScenarioStore } from '../src/scenario.js';
 import { buildServer } from '../src/server.js';
 
-const revertSha = '0681dd9e6a6b28cc107cba56887b4ecf77e361b5';
+const revertSha = 'ba8c853fa901e3829e01f1a295a57b797149d50f';
 const rollbackArguments = {
   incident_id: 'INC-4821',
   deploy_id: '9921',
@@ -86,7 +86,7 @@ describe('rollback_execute durable handler integration', () => {
   it('persists reservation before prepare and blocks concurrent resolve', async () => {
     const gate = deferred<PreparedRollback>();
     const inspectRemoteHead = vi.fn(() =>
-      Promise.resolve('b9c9167e17ed9e5a1159edcadedf1e5349550dbc'),
+      Promise.resolve('a6590bd60218e83618892a6b97d1a4d598eebb60'),
     );
     const prepare = vi.fn(() => gate.promise);
     const applyPrepared = vi.fn((): Promise<AppliedRollback> =>
@@ -158,7 +158,7 @@ describe('rollback_execute durable handler integration', () => {
     );
     const executor: DurableRollbackExecutor = {
       inspectRemoteHead: vi.fn(() =>
-        Promise.resolve('b9c9167e17ed9e5a1159edcadedf1e5349550dbc'),
+        Promise.resolve('a6590bd60218e83618892a6b97d1a4d598eebb60'),
       ),
       prepare,
       applyPrepared,
