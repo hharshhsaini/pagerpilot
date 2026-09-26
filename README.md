@@ -106,6 +106,12 @@ A production alert fires. Before the responder finishes opening their laptop, fo
 └─────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
+## Live demo
+
+[![Watch the PagerPilot demo](https://img.shields.io/badge/WATCH%20THE%20LIVE%20DEMO-Google%20Drive-dfff57?style=for-the-badge&labelColor=07100d)](https://drive.google.com/file/d/1IiIjKej4pJRGZCOj1R7P0gQOkSg3rM3d/view?usp=drive_link)
+
+**[Open the full video demo →](https://drive.google.com/file/d/1IiIjKej4pJRGZCOj1R7P0gQOkSg3rM3d/view?usp=drive_link)**
+
 ## TrueForge depth
 
 PagerPilot uses the harness as the execution system—not as a model wrapper.
