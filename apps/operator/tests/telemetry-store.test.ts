@@ -95,6 +95,7 @@ describe('incident telemetry', () => {
     state = reduceTelemetry(state, { type: 'choice', status: 'pending' });
     expect(state.phase).toBe('deciding');
 
+    state = reduceTelemetry(state, { type: 'choice', status: 'answered' });
     state = reduceTelemetry(state, {
       type: 'approval',
       toolName: 'rollback_execute',
@@ -116,13 +117,23 @@ describe('incident telemetry', () => {
     expect(state.phase).toBe('executing');
 
     state = reduceTelemetry(state, {
+      type: 'recovery',
+      evidence: {
+        revertSha: 'ba8c853f',
+        remoteSha: 'ba8c853f',
+        testsPassed: true,
+        sandboxStopped: true,
+        post: { requests: 25, errors: 0, errorRate: 0, p99Ms: 122.4 },
+      },
+    });
+    state = reduceTelemetry(state, {
       type: 'sandbox',
       status: 'success',
       name: 'daytona',
       exitCode: 0,
       resultSummary: '25 requests, 0 errors, p99 122.4ms',
     });
-    expect(state.phase).toBe('verifying');
+    expect(state.phase).toBe('recovered');
 
     state = reduceTelemetry(state, {
       type: 'closeout',
@@ -139,6 +150,29 @@ describe('incident telemetry', () => {
       reference: 'INC-4821',
     });
     expect(state.phase).toBe('resolved');
+  });
+
+  it('keeps an approved rollback executing until recovery is verified', () => {
+    let state = reduceTelemetry(createInitialTelemetry(), {
+      type: 'approval',
+      toolName: 'rollback_execute',
+      status: 'allowed',
+    });
+    state = reduceTelemetry(state, {
+      type: 'sandbox',
+      status: 'success',
+      name: 'daytona',
+      exitCode: 0,
+    });
+    expect(state.phase).toBe('executing');
+
+    const independentRun = reduceTelemetry(createInitialTelemetry(), {
+      type: 'sandbox',
+      status: 'success',
+      name: 'daytona',
+      exitCode: 0,
+    });
+    expect(independentRun.phase).toBe('verifying');
   });
 
   it('treats observable failures and reconnect state as authoritative', () => {

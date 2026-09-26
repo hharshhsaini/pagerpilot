@@ -59,98 +59,106 @@ afterEach(async () => {
 });
 
 describe('trigger-alert.sh', () => {
-  it('uses documented persistent session and background turn endpoints', async () => {
+  it('validates the incident before triggering the operator control endpoint', async () => {
     const script = await readFile(scriptUrl, 'utf8');
 
-    expect(script).toContain('/api/v1/sessions');
-    expect(script).toContain('/turns');
-    expect(script).toContain('stream: false');
-    expect(script).toContain('pagerpilot-incident-responder');
-    expect(script).toContain('Do not execute a write or destructive action');
+    expect(script).toContain('PAGERPILOT_OPERATOR_URL');
+    expect(script).toContain('/demo/trigger');
+    expect(script).toContain('--fail-with-body');
     expect(script).toContain('^INC-[0-9]+$');
     expect(script.indexOf('^INC-[0-9]+$')).toBeLessThan(
-      script.indexOf('/api/v1/sessions'),
+      script.indexOf('/demo/trigger'),
     );
   });
 
-  it('JSON-encodes the agent and creates a background turn', async () => {
+  it('JSON-encodes the incident and prints the durable session link', async () => {
     const requests: Array<{ method?: string; url?: string; body: unknown }> =
       [];
-    const baseUrl = await startServer((request, response) => {
+    const operatorUrl = await startServer((request, response) => {
       void body(request).then(payload => {
         requests.push({
           method: request.method,
           url: request.url,
           body: payload,
         });
-        response.writeHead(request.url === '/api/v1/sessions' ? 201 : 200, {
-          'content-type': 'application/json',
-        });
+        response.writeHead(201, { 'content-type': 'application/json' });
         response.end(
-          request.url === '/api/v1/sessions'
-            ? '{"data":{"id":"session-1"}}'
-            : '{"data":{"id":"turn-1"}}',
+          JSON.stringify({
+            incidentId: 'INC-4821',
+            sessionId: 'session-1',
+            slackStatus: 'delivered',
+            slackPermalink: 'https://slack.test/archives/C1/p1',
+          }),
         );
       });
     });
 
     const result = await execFileAsync(scriptPath, ['INC-4821'], {
-      env: {
-        ...process.env,
-        TRUEFORGE_BASE_URL: baseUrl,
-        PAGERPILOT_AGENT_NAME: 'pagerpilot-"quoted"',
-        PAGERPILOT_OPERATOR_URL: 'http://operator.test',
-      },
+      env: { ...process.env, PAGERPILOT_OPERATOR_URL: operatorUrl },
     });
 
-    expect(result.stdout).toContain('session-1');
+    expect(requests).toEqual([
+      {
+        method: 'POST',
+        url: '/demo/trigger',
+        body: { incident_id: 'INC-4821' },
+      },
+    ]);
+    expect(result.stdout).toContain('Incident detected: INC-4821');
     expect(result.stdout).toContain(
-      'Operator URL: http://operator.test/sessions/session-1',
+      'Slack investigation notification: delivered',
     );
-    expect(requests).toHaveLength(2);
-    expect(requests[0]).toEqual({
-      method: 'POST',
-      url: '/api/v1/sessions',
-      body: { agent: { name: 'pagerpilot-"quoted"' } },
-    });
-    expect(requests[1]).toMatchObject({
-      method: 'POST',
-      url: '/api/v1/sessions/session-1/turns',
-    });
-    expect(requests[1]?.body).toMatchObject({ stream: false });
+    expect(result.stdout).toContain(
+      `PagerPilot: ${operatorUrl}/sessions/session-1`,
+    );
+    expect(result.stdout).toContain('Slack: https://slack.test/archives/C1/p1');
   });
 
-  it('deletes an empty session when turn creation fails', async () => {
+  it('rejects a malformed incident ID before contacting the operator', async () => {
     const requests: string[] = [];
-    const baseUrl = await startServer((request, response) => {
+    const operatorUrl = await startServer((request, response) => {
       requests.push(`${request.method} ${request.url}`);
-      if (request.method === 'POST' && request.url === '/api/v1/sessions') {
-        void body(request).then(() => {
-          response.writeHead(201, { 'content-type': 'application/json' });
-          response.end('{"data":{"id":"session-1"}}');
-        });
-        return;
-      }
-      if (request.method === 'DELETE') {
-        response.writeHead(204);
-        response.end();
-        return;
-      }
+      response.writeHead(500);
+      response.end();
+    });
+
+    await expect(
+      execFileAsync(scriptPath, ['INC-48x1'], {
+        env: { ...process.env, PAGERPILOT_OPERATOR_URL: operatorUrl },
+      }),
+    ).rejects.toMatchObject({ code: 2 });
+    expect(requests).toEqual([]);
+  });
+
+  it('fails visibly when the operator rejects the trigger', async () => {
+    const operatorUrl = await startServer((request, response) => {
       void body(request).then(() => {
         response.writeHead(500, { 'content-type': 'application/json' });
-        response.end('{"error":"turn failed"}');
+        response.end('{"error":"trigger failed"}');
       });
     });
 
     await expect(
       execFileAsync(scriptPath, ['INC-4821'], {
-        env: { ...process.env, TRUEFORGE_BASE_URL: baseUrl },
+        env: { ...process.env, PAGERPILOT_OPERATOR_URL: operatorUrl },
       }),
     ).rejects.toMatchObject({ code: 22 });
-    expect(requests).toEqual([
-      'POST /api/v1/sessions',
-      'POST /api/v1/sessions/session-1/turns',
-      'DELETE /api/v1/sessions/session-1',
-    ]);
+  });
+
+  it('refuses a trigger response without a session ID', async () => {
+    const operatorUrl = await startServer((request, response) => {
+      void body(request).then(() => {
+        response.writeHead(201, { 'content-type': 'application/json' });
+        response.end('{"incidentId":"INC-4821"}');
+      });
+    });
+
+    await expect(
+      execFileAsync(scriptPath, ['INC-4821'], {
+        env: { ...process.env, PAGERPILOT_OPERATOR_URL: operatorUrl },
+      }),
+    ).rejects.toMatchObject({
+      stderr: expect.stringContaining('missing sessionId') as unknown,
+    });
   });
 });
