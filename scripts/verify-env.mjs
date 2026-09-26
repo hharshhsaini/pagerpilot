@@ -7,6 +7,7 @@ const sensitiveVariables = [
   'DAYTONA_SNAPSHOT',
   'GITHUB_TOKEN',
   'GITHUB_DEMO_TOKEN',
+  'SLACK_BOT_TOKEN',
   'SLACK_WEBHOOK_URL',
   'TRUEFORGE_TOKEN',
 ];

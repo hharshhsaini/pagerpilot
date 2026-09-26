@@ -160,3 +160,126 @@ Key constraints:
 - A restart compares remote HEAD with the approved deploy and persisted revert; any unrelated SHA becomes a conflict.
 - Errors remain visible; the system does not turn missing evidence into success.
 
+
+## How a run works
+
+1. **Alert.** `demo/trigger-alert.sh` asks the operator control server to open a durable TrueForge session for incident `INC-4821` and posts "investigation started" to Slack.
+2. **Acknowledge.** The saved `pagerpilot-incident-responder` agent loads the PagerPilot runbook skill, reads the incident from the `checkout-svc-sim` MCP server, and acknowledges the page.
+3. **Investigate in parallel.** Four sibling subagents (logs, metrics, deploys, code) each return one typed JSON report. Missing evidence or unresolved unknowns block correlation.
+4. **Correlate and decide.** The agent renders the RCA through OpenUI, posts the checkpoint to Slack, and pauses with an ask-user question for the remediation path.
+5. **Approve.** Choosing rollback is not permission to act. `rollback_execute` pauses again on a native TrueForge approval for the exact repository and branch.
+6. **Recover.** After approval, a Daytona sandbox clones the demo service, reproduces the regression, creates and tests the revert, pushes it, verifies the remote SHA, and stops.
+7. **Close out.** The agent posts the final RCA to Slack, files a Linear follow-up in the `PagerPilot` team, and resolves the incident.
+
+The operator command center (`http://127.0.0.1:4173`) renders this flow from session events. Its rollback and approval buttons play a staged recovery walkthrough for presentations; a real rollback runs when the `rollback_execute` approval is granted in the native TrueForge workbench.
+
+## Run it locally
+
+### Prerequisites
+
+- Node.js 22.14 or later, with pnpm enabled once through `corepack enable pnpm`
+- A [TrueForge](https://github.com/truefoundry/trueforge) checkout, run in standalone (SQLite) mode
+- An OpenAI API key
+- A Daytona API key with sandbox access and snapshot create permission
+- A Linear workspace with a team named `PagerPilot`
+- A Slack app with a bot token (`chat:write`, `chat:write.customize`) invited to your incident channel
+- A GitHub fine-grained token with **Contents: read and write** on [`pagerpilot-demo`](https://github.com/hharshhsaini/pagerpilot-demo), the rollback target
+
+### 1. Install PagerPilot
+
+```bash
+git clone --recurse-submodules https://github.com/hharshhsaini/pagerpilot.git
+cd pagerpilot
+pnpm install
+cp .env.example .env
+```
+
+### 2. Start TrueForge
+
+In the TrueForge checkout, create `packages/trueforge/.env`:
+
+```bash
+PORT=8790
+HOST=127.0.0.1
+APP_DATA_DIR_SUFFIX=dev
+# Callback origin for Linear OAuth; the TrueForge UI serves /api on this origin
+PUBLIC_BASE_URL=http://localhost:3000
+# Allow the local checkout-svc-sim MCP server; all other private hosts stay blocked
+OUTBOUND_URL_ALLOWED_HOSTS=["127.0.0.1"]
+# A Daytona rollback can outlast the default 4-minute MCP request limit
+MCP_REQUEST_TIMEOUT_MS=900000
+```
+
+Then start it and open the UI at `http://localhost:3000`:
+
+```bash
+pnpm install
+pnpm standalone:dev
+```
+
+### 3. Connect providers in TrueForge
+
+In **Settings**:
+
+- **Models:** add OpenAI with your API key and no custom endpoint. Use the listed name, such as `openai/gpt-5-6-sol`, for `TRUEFORGE_MODEL`.
+- **Sandbox providers:** add Daytona with your API key. TrueForge builds a `trueforge-build-…` snapshot in your Daytona account; put its name in `DAYTONA_SNAPSHOT`.
+- **Connectors:** add Linear and complete OAuth.
+
+### 4. Fill in `.env`
+
+| Variable | Value |
+|---|---|
+| `TRUEFORGE_MODEL` | The model name TrueForge lists |
+| `PAGERPILOT_SKILL_REPOSITORY_REF` | A pushed, full 40-character commit SHA that contains `skills/pagerpilot-runbook` (`git rev-parse HEAD`) |
+| `DAYTONA_API_KEY`, `DAYTONA_SNAPSHOT` | Daytona key and the TrueForge-built snapshot |
+| `GITHUB_DEMO_TOKEN` | Token with push access to `pagerpilot-demo` |
+| `SLACK_BOT_TOKEN`, `SLACK_CHANNEL_ID` | Bot token (`xoxb-…`) and channel ID (`C…`) |
+| `VITE_PAGERPILOT_AGENT_ID` | Filled in after step 5 |
+
+Keep `.env` out of Git; `.env.example` must stay free of real values.
+
+### 5. Start the MCP server and register the agent
+
+```bash
+cd mcp-servers/checkout-svc-sim
+npx tsx --env-file=../../.env src/main.ts
+```
+
+In a second terminal, from the repository root:
+
+```bash
+node --env-file=.env scripts/bootstrap-trueforge.mjs
+```
+
+The bootstrap verifies the published runbook, model, MCP tools, and Linear connector, then creates or updates the saved agent. Copy the printed `agent.id` into `VITE_PAGERPILOT_AGENT_ID`.
+
+### 6. Start the operator console
+
+```bash
+cd apps/operator
+node --env-file=../../.env node_modules/vite/bin/vite.js --host 127.0.0.1 --port 4173 --strictPort
+```
+
+Open `http://127.0.0.1:4173`. It shows the healthy production monitor.
+
+### 7. Fire an alert
+
+```bash
+PAGERPILOT_OPERATOR_URL=http://127.0.0.1:4173 ./demo/trigger-alert.sh INC-4821
+```
+
+The monitor turns red and opens the incident command center after a few seconds.
+
+### Reset between runs
+
+```bash
+curl -X POST http://127.0.0.1:4173/demo/reset
+```
+
+Then stop the MCP server, delete its simulator state (`rm -f mcp-servers/checkout-svc-sim/.pagerpilot/checkout-svc-sim.sqlite*`), and start it again so `INC-4821` returns to `triggered`. After a real rollback, also move `pagerpilot-demo` `main` back to the deploy 9921 commit.
+
+### Verify
+
+```bash
+pnpm verify
+```
