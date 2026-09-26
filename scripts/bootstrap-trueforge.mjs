@@ -10,6 +10,7 @@ import {
   findAgentByName,
 } from '../agent/trueforge-client.mjs';
 import {
+  AGENT_DESCRIPTION,
   AGENT_NAME,
   DEFAULT_MODEL_NAME,
   LINEAR_MCP_SERVER_NAME,
@@ -303,14 +304,14 @@ async function upsertAgent(compactionStyle) {
     return requestJson(
       'POST',
       '/api/v1/agents',
-      { name: AGENT_NAME, manifest },
+      { name: AGENT_NAME, description: AGENT_DESCRIPTION, manifest },
       [201],
     );
   }
   return requestJson(
     'PUT',
     `/api/v1/agents/${encodeURIComponent(existing.id)}`,
-    { manifest },
+    { description: AGENT_DESCRIPTION, manifest },
     [200],
   );
 }

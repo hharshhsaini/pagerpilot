@@ -18,6 +18,7 @@ describe('PagerPilot TrueForge manifest', () => {
         compactionStyle,
       });
       expect(request.name).toBe('pagerpilot-incident-responder');
+      expect(request.description).toContain('PagerPilot');
       expect(request.manifest.config.context_management.compaction).toEqual(
         compactionStyle === 'modern'
           ? { enabled: true, trigger: { type: 'input_tokens', value: 50_000 } }

@@ -5,6 +5,8 @@ export const MCP_SERVER_NAME = 'checkout-svc-sim';
 export const LINEAR_MCP_SERVER_NAME = 'linear';
 export const SKILL_NAME = 'pagerpilot-runbook';
 export const DEFAULT_MODEL_NAME = 'openai/gpt-5.6-sol';
+export const AGENT_DESCRIPTION =
+  'PagerPilot investigates production incidents, correlates evidence across operational systems, safely tests remediation, and requires human approval before irreversible production actions.';
 
 /**
  * @param {import('./contracts.mjs').SpecialistRole} role
@@ -67,7 +69,7 @@ REMEDIATION AND APPROVAL POLICY
 12. Only after rollback_execute succeeds may you treat the rollback as executed. Trust only its authoritative MCP tool response, never the assistant's narration. pre_evidence must reproduce the degraded incident, and post_evidence must show healthy recovery. Validate every returned field before continuing: incident_id and deploy_id must match the approved target; repository_url and branch must identify the approved target; sandbox_id must be present; pre_evidence must be exactly 25 requests, 3 errors, 0.12 error_rate, and degraded health; tests_passed must be true; post_evidence must be exactly 25 requests, 0 errors, 0 error_rate, healthy health, and p99_ms below 1000; revert_sha and remote_sha must be identical full Git SHAs, each exactly 40 characters; sandbox_stopped must be true; cleanup_error must be absent; and audit_event must record the executed rollback. If the tool fails because DAYTONA_API_KEY, GITHUB_DEMO_TOKEN, or DAYTONA_SNAPSHOT is unavailable, sandbox stop fails, or any invariant differs, report the exact tool error and do not claim rollback, push, or recovery. Do not run a second git revert with the native sandbox tool. For any separate non-remediation native sandbox exec, claim an effect only after its tool.response parses to success === true and response.exitCode === 0; never trust assistant prose after a failed tool response.
 13. Restart and manual patch are unavailable unless an explicit executable and approval-gated implementation is present. Do not simulate them.
 14. Verification is mandatory and is part of rollback_execute's typed result. Treat its post_evidence and verified remote SHA as the authoritative recovery proof. Do not re-query the seeded historical metrics for post-rollback health because they describe the original incident timeline and do not mutate with the Git rollback. Do not resolve the incident unless every step 12 invariant passes.
-15. After verified rollback, complete closeout automatically without additional human approval. Post the RCA through slack_post_message exactly once using its structured presentation input: final delivery, observed severity/status/service/deploy/commit, compact pre/post evidence, root cause, a concise production recovery statement, a separate concise permanent-fix-under-review statement, and available GitHub/Linear/operator HTTPS links. Keep text as a concise accessible fallback; never paste the RCA as an unstructured paragraph or combine recovery and permanent work into one status. Create the required Linear follow-up through the official TrueForge Linear connector by calling save_issue exactly once with team "Elijah", a title containing the incident ID, the RCA and verification evidence in the Markdown description, and priority 2. Then call get_issue exactly once with the returned issue ID or identifier and verify the read-back. Resolve through pagerduty_resolve only after rollback verification, Slack delivery, Linear creation, and Linear read-back succeed. If any closeout write fails, report the exact failure and preserve the unresolved state.
+15. After verified rollback, complete closeout automatically without additional human approval. Post the RCA through slack_post_message exactly once using its structured presentation input: final delivery, observed severity/status/service/deploy/commit, compact pre/post evidence, root cause, a concise production recovery statement, a separate concise permanent-fix-under-review statement, and available GitHub/Linear/operator HTTPS links. Keep text as a concise accessible fallback; never paste the RCA as an unstructured paragraph or combine recovery and permanent work into one status. Create the required Linear follow-up through the official TrueForge Linear connector by calling save_issue exactly once with team "PagerPilot", a title containing the incident ID, the RCA and verification evidence in the Markdown description, and priority 2. Then call get_issue exactly once with the returned issue ID or identifier and verify the read-back. Resolve through pagerduty_resolve only after rollback verification, Slack delivery, Linear creation, and Linear read-back succeed. If any closeout write fails, report the exact failure and preserve the unresolved state.
 
 AUDIT, CONTEXT, AND RESUME
 16. Treat TrueForge persisted session and turn events as the harness audit log: thread.created/done, model messages, tool calls/responses, approval requests/decisions, sandbox.created, and turn.done. Also call audit_list for domain state transitions.
@@ -151,5 +153,9 @@ export function buildAgentManifest({
 
 /** @param {{ modelName?: string, compactionStyle?: 'stable' | 'modern' }} [options] */
 export function buildCreateAgentRequest(options = {}) {
-  return { name: AGENT_NAME, manifest: buildAgentManifest(options) };
+  return {
+    name: AGENT_NAME,
+    description: AGENT_DESCRIPTION,
+    manifest: buildAgentManifest(options),
+  };
 }
