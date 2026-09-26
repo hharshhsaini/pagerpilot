@@ -13,7 +13,7 @@ const revertSha = '0681dd9e6a6b28cc107cba56887b4ecf77e361b5';
 const rollbackArguments = {
   incident_id: 'INC-4821',
   deploy_id: '9921',
-  repository_url: 'https://github.com/ElijahUmana/oncall-demo-svc.git',
+  repository_url: 'https://github.com/hharshhsaini/pagerpilot-demo.git',
   branch: 'main',
   requested_by: 'operator',
   reason: 'Deploy immediately preceded 503 checkout deadline failures',

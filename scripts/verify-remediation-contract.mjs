@@ -48,7 +48,7 @@ const agentExecutesSecondRollback = agentSource.includes(
   'Only after rollback_execute succeeds may you use the TrueForge sandbox exec tool.',
 );
 const expectedRepositoryUrl =
-  'https://github.com/ElijahUmana/oncall-demo-svc.git';
+  'https://github.com/hharshhsaini/pagerpilot-demo.git';
 const approvalBindsRepository =
   serverSource.includes('repository_url: z.literal(ROLLBACK_REPOSITORY_URL)') &&
   executorSource.includes(

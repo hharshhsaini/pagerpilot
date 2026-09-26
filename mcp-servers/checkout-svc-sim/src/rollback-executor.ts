@@ -8,7 +8,7 @@ import {
 import { type RollbackReservationInput } from './durable-state.js';
 
 export const ROLLBACK_REPOSITORY_URL =
-  'https://github.com/ElijahUmana/oncall-demo-svc.git' as const;
+  'https://github.com/hharshhsaini/pagerpilot-demo.git' as const;
 export const ROLLBACK_BRANCH = 'main' as const;
 
 interface ExecuteResponseLike {
@@ -294,7 +294,7 @@ export class DaytonaRollbackExecutor implements DurableRollbackExecutor {
     let response: Response;
     try {
       response = await this.#fetch(
-        `https://api.github.com/repos/ElijahUmana/oncall-demo-svc/commits/${encodeURIComponent(input.branch)}`,
+        `https://api.github.com/repos/hharshhsaini/pagerpilot-demo/commits/${encodeURIComponent(input.branch)}`,
         {
           headers: {
             accept: 'application/vnd.github+json',
@@ -359,8 +359,8 @@ export class DaytonaRollbackExecutor implements DurableRollbackExecutor {
             ROLLBACK_REPOSITORY_URL: input.repositoryUrl,
             ROLLBACK_BRANCH: input.branch,
             ROLLBACK_COMMIT_DATE: deterministicCommitDate,
-            GIT_AUTHOR_NAME: 'Elijah Umana',
-            GIT_AUTHOR_EMAIL: 'elijahsam2020@gmail.com',
+            GIT_AUTHOR_NAME: 'PagerPilot',
+            GIT_AUTHOR_EMAIL: '218725159+hharshhsaini@users.noreply.github.com',
           },
         },
         300,

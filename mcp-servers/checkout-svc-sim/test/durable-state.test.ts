@@ -29,7 +29,7 @@ const rollbackInput: RollbackReservationInput = {
   incidentId: 'INC-4821',
   deployId: '9921',
   deployCommit: 'b9c9167e17ed9e5a1159edcadedf1e5349550dbc',
-  repositoryUrl: 'https://github.com/ElijahUmana/oncall-demo-svc.git',
+  repositoryUrl: 'https://github.com/hharshhsaini/pagerpilot-demo.git',
   branch: 'main',
   requestedBy: 'operator',
   reason: 'Deploy immediately preceded 503 checkout deadline failures',

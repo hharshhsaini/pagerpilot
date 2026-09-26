@@ -504,7 +504,7 @@ function startDemoExecution(
     remoteSha: '0681dd9e6a6b28cc107cba56887b4ecf77e361b5',
     testsPassed: true,
     sandboxStopped: true,
-    githubUrl: 'https://github.com/ElijahUmana/oncall-demo-svc/commit/0681dd9e6a6b28cc107cba56887b4ecf77e361b5',
+    githubUrl: 'https://github.com/hharshhsaini/pagerpilot-demo/commit/0681dd9e6a6b28cc107cba56887b4ecf77e361b5',
     linearUrl: 'https://linear.app/elijah-trueforge-20260829/issue/ELI-5/oncall-follow-up-guard-checkout-bulk-write-performance-inc-4821',
   };
   const runNonce = randomUUID();
@@ -767,7 +767,7 @@ export function createDemoControlPlugin(environment: DemoEnvironment): Plugin {
           toolCallId: state.checkpoint?.toolCallId ?? 'demo-rollback-approval',
           threadId: state.checkpoint?.threadId ?? 'main',
           title: 'Approve rollback execute?',
-          detail: 'Revert deploy 9921 in https://github.com/ElijahUmana/oncall-demo-svc.git on main, run tests, push, verify remote recovery, and stop the Daytona sandbox.',
+          detail: 'Revert deploy 9921 in https://github.com/hharshhsaini/pagerpilot-demo.git on main, run tests, push, verify remote recovery, and stop the Daytona sandbox.',
           options: ['allow', 'deny'],
         };
         if (state.checkpoint?.kind === 'response') {

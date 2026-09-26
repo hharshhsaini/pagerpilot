@@ -1,4 +1,4 @@
 [submodule "demo-svc"]
 	path = demo-svc
-	url = https://github.com/ElijahUmana/oncall-demo-svc.git
+	url = https://github.com/hharshhsaini/pagerpilot-demo.git
 	branch = main
