@@ -154,6 +154,3 @@ Key constraints:
 - A restart compares remote HEAD with the approved deploy and persisted revert; any unrelated SHA becomes a conflict.
 - Errors remain visible; the system does not turn missing evidence into success.
 
-## Credits
-
-PagerPilot is based on [the original TrueForge incident-response project](https://github.com/ElijahUmana/oncall-trueforge-hackathon) by [Elijah Umana](https://github.com/ElijahUmana), who designed and built its architecture, safety model, durable remediation, and operator UI.
