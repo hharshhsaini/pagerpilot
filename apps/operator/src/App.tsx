@@ -102,32 +102,6 @@ const theme: ThemeConfig = {
 const errorFallback =
   'TrueForge did not accept the alert. Check the harness connection and agent registration.';
 
-/**
- * Starts the incident through the operator control server so it tracks the
- * session's checkpoints and posts to Slack. Returns undefined when no control
- * server is mounted, so the caller can start the session directly.
- */
-async function triggerThroughControl(
-  incident: string,
-): Promise<string | undefined> {
-  const response = await fetch('/demo/trigger', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ incident_id: incident }),
-  });
-  if (response.status === 404) return undefined;
-  const payload = (await response.json()) as {
-    sessionId?: unknown;
-    error?: unknown;
-  };
-  if (!response.ok || typeof payload.sessionId !== 'string') {
-    throw new Error(
-      typeof payload.error === 'string' ? payload.error : errorFallback,
-    );
-  }
-  return payload.sessionId;
-}
-
 type TriggerState =
   | { status: 'idle' }
   | { status: 'submitting' }
@@ -158,20 +132,14 @@ export default function App() {
     incidentTelemetry.dispatch({ type: 'sdk-trigger', status: 'running' });
     setTriggerState({ status: 'submitting' });
     try {
-      const sessionId = await triggerThroughControl(incidentId).then(
-        async controlled => {
-          if (controlled) return controlled;
-          const { sessionId: direct, turn } = await startAlert({
-            baseUrl,
-            agentName,
-            incidentId,
-          });
-          void turn.catch(error => {
-            console.error('TrueForge turn stream ended; session replay will continue.', error);
-          });
-          return direct;
-        },
-      );
+      const { sessionId, turn } = await startAlert({
+        baseUrl,
+        agentName,
+        incidentId,
+      });
+      void turn.catch(error => {
+        console.error('TrueForge turn stream ended; session replay will continue.', error);
+      });
       incidentTelemetry.dispatch({
         type: 'session',
         sessionId,
