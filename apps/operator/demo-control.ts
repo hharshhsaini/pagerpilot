@@ -3,6 +3,11 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin } from 'vite';
+import {
+  rollbackOutcome,
+  turnFinished,
+  type RollbackRecovery,
+} from './rollback-outcome.js';
 
 const DEFAULT_INCIDENT_ID = 'INC-4821';
 const DEFAULT_AGENT_NAME = 'pagerpilot-incident-responder';
@@ -40,22 +45,8 @@ type DemoState = {
   checkpoint?: DemoCheckpoint;
   notifiedCheckpointId?: string;
   message?: string;
-  demoOverride?: boolean;
-  executionStep?: number;
   executionStartedAt?: string;
-  recovery?: {
-    sandboxId: string;
-    preP99Ms: number;
-    preErrors: number;
-    postP99Ms: number;
-    postErrors: number;
-    revertSha: string;
-    remoteSha: string;
-    testsPassed: boolean;
-    sandboxStopped: boolean;
-    githubUrl: string;
-    linearUrl: string;
-  };
+  recovery?: RollbackRecovery;
   finalSlackPermalink?: string;
   nonce: string;
 };
@@ -422,137 +413,6 @@ async function postCheckpoint(
   return slackPermalink(token, channel, payload.ts);
 }
 
-async function postFinalRecovery(
-  environment: DemoEnvironment,
-  state: DemoState,
-): Promise<string | undefined> {
-  const token = environment.SLACK_BOT_TOKEN;
-  const channel = environment.SLACK_CHANNEL_ID;
-  const recovery = state.recovery;
-  if (!token || !channel || !recovery) return undefined;
-  const operator = environment.PAGERPILOT_OPERATOR_URL ?? 'http://127.0.0.1:4334';
-  const response = await fetch('https://slack.com/api/chat.postMessage', {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${token}`,
-      'content-type': 'application/json; charset=utf-8',
-    },
-    body: JSON.stringify({
-      channel,
-      username: 'PagerPilot',
-      icon_emoji: ':white_check_mark:',
-      unfurl_links: false,
-      unfurl_media: false,
-      text: `${state.incidentId}: production recovered`,
-      blocks: [
-        {
-          type: 'header',
-          text: { type: 'plain_text', text: `${state.incidentId} · Production recovered` },
-        },
-        {
-          type: 'section',
-          fields: [
-            { type: 'mrkdwn', text: `*Before*\n${recovery.preErrors} errors · p99 ${recovery.preP99Ms} ms` },
-            { type: 'mrkdwn', text: `*After*\n${recovery.postErrors} errors · p99 ${recovery.postP99Ms} ms` },
-            { type: 'mrkdwn', text: `*Rollback*\n\`${recovery.revertSha.slice(0, 10)}\`` },
-            { type: 'mrkdwn', text: '*Verification*\nTests passed · sandbox stopped' },
-          ],
-        },
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: '*Root cause*\nDeploy 9921 introduced serial per-item database writes in the checkout request path, driving p99 above six seconds and producing deadline failures.',
-          },
-        },
-        {
-          type: 'actions',
-          elements: [
-            { type: 'button', text: { type: 'plain_text', text: 'GitHub rollback' }, url: recovery.githubUrl, style: 'primary' },
-            { type: 'button', text: { type: 'plain_text', text: 'Linear follow-up' }, url: recovery.linearUrl },
-            { type: 'button', text: { type: 'plain_text', text: 'PagerPilot session' }, url: `${operator}/sessions/${state.sessionId}` },
-          ],
-        },
-        {
-          type: 'context',
-          elements: [
-            { type: 'mrkdwn', text: 'Permanent bulk-write guard remains under review and is not deployed.' },
-          ],
-        },
-      ],
-    }),
-  });
-  const payload = (await response.json()) as { ok?: boolean; error?: string; ts?: string };
-  if (!payload.ok || !payload.ts) {
-    throw new Error(`Slack recovery message failed: ${payload.error ?? 'unknown error'}`);
-  }
-  return slackPermalink(token, channel, payload.ts);
-}
-
-function startDemoExecution(
-  environment: DemoEnvironment,
-  statePath: string,
-  state: DemoState,
-): void {
-  const recovery = {
-    sandboxId: `daytona-${randomUUID().slice(0, 8)}`,
-    preP99Ms: 6813.7,
-    preErrors: 3,
-    postP99Ms: 122.4,
-    postErrors: 0,
-    revertSha: 'ba8c853fa901e3829e01f1a295a57b797149d50f',
-    remoteSha: 'ba8c853fa901e3829e01f1a295a57b797149d50f',
-    testsPassed: true,
-    sandboxStopped: true,
-    githubUrl: 'https://github.com/hharshhsaini/pagerpilot-demo/commit/ba8c853fa901e3829e01f1a295a57b797149d50f',
-    linearUrl: 'https://linear.app/elijah-trueforge-20260829/issue/ELI-5/oncall-follow-up-guard-checkout-bulk-write-performance-inc-4821',
-  };
-  const runNonce = randomUUID();
-  const started: DemoState = {
-    ...state,
-    phase: 'executing',
-    checkpoint: undefined,
-    notifiedCheckpointId: undefined,
-    executionStep: 0,
-    executionStartedAt: new Date().toISOString(),
-    recovery,
-    demoOverride: true,
-    nonce: runNonce,
-  };
-  void saveState(statePath, started);
-  let step = 0;
-  const timer = setInterval(() => {
-    void (async () => {
-      step += 1;
-      const current = await readState(statePath);
-      if (current.nonce !== runNonce || current.phase === 'healthy') {
-        clearInterval(timer);
-        return;
-      }
-      if (step <= 6) {
-        await saveState(statePath, { ...current, phase: 'executing', executionStep: step });
-        return;
-      }
-      clearInterval(timer);
-      let complete: DemoState = {
-        ...current,
-        phase: 'recovered',
-        executionStep: 6,
-        recovery,
-        nonce: runNonce,
-      };
-      try {
-        const permalink = await postFinalRecovery(environment, complete);
-        if (permalink) complete = { ...complete, finalSlackPermalink: permalink, slackPermalink: permalink };
-      } catch (error) {
-        console.error(error);
-      }
-      await saveState(statePath, complete);
-    })().catch(error => console.error('PagerPilot demo execution failed', error));
-  }, 2200);
-  timer.unref();
-}
-
 async function answerCheckpoint(
   environment: DemoEnvironment,
   state: DemoState,
@@ -589,6 +449,29 @@ async function answerCheckpoint(
   );
 }
 
+async function respondToCheckpoint(
+  environment: DemoEnvironment,
+  statePath: string,
+  state: DemoState,
+  value: string,
+): Promise<DemoState> {
+  await answerCheckpoint(environment, state, value);
+  const approvedRollback =
+    state.checkpoint?.kind === 'approval' &&
+    value === 'allow' &&
+    state.checkpoint.title.toLowerCase().includes('rollback');
+  const next: DemoState = {
+    ...state,
+    checkpoint: undefined,
+    notifiedCheckpointId: undefined,
+    ...(approvedRollback
+      ? { phase: 'executing', executionStartedAt: new Date().toISOString() }
+      : {}),
+  };
+  await saveState(statePath, next);
+  return next;
+}
+
 function monitorSession(
   environment: DemoEnvironment,
   statePath: string,
@@ -598,18 +481,39 @@ function monitorSession(
     void (async () => {
       const state = await readState(statePath);
       if (
-        state.demoOverride === true ||
-        state.phase === 'executing' ||
+        state.sessionId !== sessionId ||
+        state.phase === 'healthy' ||
+        state.phase === 'failed' ||
         state.phase === 'recovered'
       ) {
-        return;
-      }
-      if (state.sessionId !== sessionId || state.phase === 'failed') {
         clearInterval(timer);
         return;
       }
       const events = await sessionEvents(environment, sessionId);
       const checkpoint = pendingCheckpoint(events);
+      if (state.phase === 'executing' && !checkpoint) {
+        const outcome = rollbackOutcome(events);
+        if (outcome.status === 'failed') {
+          await saveState(statePath, { ...state, phase: 'failed', message: outcome.message });
+        } else if (outcome.status === 'verified') {
+          await saveState(statePath, {
+            ...state,
+            phase: turnFinished(events) ? 'recovered' : 'executing',
+            recovery: outcome.recovery,
+            ...(outcome.recovery.slackPermalink
+              ? { finalSlackPermalink: outcome.recovery.slackPermalink }
+              : {}),
+          });
+        } else if (turnFinished(events)) {
+          await saveState(statePath, {
+            ...state,
+            phase: 'failed',
+            message:
+              'The agent finished without a verified rollback result. Inspect the session for the authoritative outcome.',
+          });
+        }
+        return;
+      }
       const threadDone = events.filter(event => event.type === 'thread.done').length;
       const nextPhase: DemoPhase =
         checkpoint?.kind === 'approval'
@@ -762,38 +666,26 @@ export function createDemoControlPlugin(environment: DemoEnvironment): Plugin {
       }
       if (request.method === 'POST' && url.pathname === '/demo/select-rollback') {
         const state = await readState(statePath);
-        const approval: DemoCheckpoint = {
-          kind: 'approval',
-          toolCallId: state.checkpoint?.toolCallId ?? 'demo-rollback-approval',
-          threadId: state.checkpoint?.threadId ?? 'main',
-          title: 'Approve rollback execute?',
-          detail: 'Revert deploy 9921 in https://github.com/hharshhsaini/pagerpilot-demo.git on main, run tests, push, verify remote recovery, and stop the Daytona sandbox.',
-          options: ['allow', 'deny'],
-        };
-        if (state.checkpoint?.kind === 'response') {
-          void answerCheckpoint(environment, state, 'rollback the suspect deploy').catch(error =>
-            console.error('Background TrueForge remediation selection failed', error),
-          );
+        if (state.checkpoint?.kind !== 'response') {
+          json(response, 409, { error: 'No remediation choice is pending' });
+          return;
         }
-        const next = {
-          ...state,
-          phase: 'approval' as const,
-          checkpoint: approval,
-          notifiedCheckpointId: approval.toolCallId,
-          demoOverride: true,
-        };
-        await saveState(statePath, next);
+        const next = await respondToCheckpoint(
+          environment,
+          statePath,
+          state,
+          'rollback the suspect deploy',
+        );
         json(response, 202, next);
         return;
       }
       if (request.method === 'POST' && url.pathname === '/demo/approve-rollback') {
         const state = await readState(statePath);
-        startDemoExecution(environment, statePath, state);
-        if (state.checkpoint?.kind === 'approval' && !state.checkpoint.toolCallId.startsWith('demo-')) {
-          void answerCheckpoint(environment, state, 'allow').catch(error =>
-            console.error('Background TrueForge rollback approval failed', error),
-          );
+        if (state.checkpoint?.kind !== 'approval') {
+          json(response, 409, { error: 'No rollback approval is pending' });
+          return;
         }
+        await respondToCheckpoint(environment, statePath, state, 'allow');
         json(response, 202, { accepted: true, sessionId: state.sessionId });
         return;
       }
@@ -805,23 +697,7 @@ export function createDemoControlPlugin(environment: DemoEnvironment): Plugin {
           return;
         }
         const state = await readState(statePath);
-        if (
-          state.checkpoint?.kind === 'approval' &&
-          value === 'allow' &&
-          state.checkpoint.title.toLowerCase().includes('rollback')
-        ) {
-          startDemoExecution(environment, statePath, state);
-          void answerCheckpoint(environment, state, value).catch(error =>
-            console.error('Background TrueForge approval continuation failed', error),
-          );
-        } else {
-          await answerCheckpoint(environment, state, value);
-          await saveState(statePath, {
-            ...state,
-            checkpoint: undefined,
-            notifiedCheckpointId: undefined,
-          });
-        }
+        await respondToCheckpoint(environment, statePath, state, value);
         json(response, 202, { accepted: true, sessionId: state.sessionId });
         return;
       }
@@ -840,23 +716,7 @@ export function createDemoControlPlugin(environment: DemoEnvironment): Plugin {
           response.end('<h1>PagerPilot action link is invalid or expired.</h1>');
           return;
         }
-        if (
-          state.checkpoint?.kind === 'approval' &&
-          value === 'allow' &&
-          state.checkpoint.title.toLowerCase().includes('rollback')
-        ) {
-          startDemoExecution(environment, statePath, state);
-          void answerCheckpoint(environment, state, value).catch(error =>
-            console.error('Background TrueForge approval continuation failed', error),
-          );
-        } else {
-          await answerCheckpoint(environment, state, value);
-          await saveState(statePath, {
-            ...state,
-            checkpoint: undefined,
-            notifiedCheckpointId: undefined,
-          });
-        }
+        await respondToCheckpoint(environment, statePath, state, value);
         response.statusCode = 303;
         response.setHeader('location', `/sessions/${encodeURIComponent(state.sessionId)}`);
         response.end();

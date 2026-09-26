@@ -420,7 +420,6 @@ function condense(value: string, limit = 150): string {
 
 type DemoRecoveryState = {
   phase?: string;
-  executionStep?: number;
   recovery?: {
     sandboxId: string;
     preP99Ms: number;
@@ -432,7 +431,8 @@ type DemoRecoveryState = {
     testsPassed: boolean;
     sandboxStopped: boolean;
     githubUrl: string;
-    linearUrl: string;
+    linearUrl?: string;
+    linearIdentifier?: string;
   };
   slackPermalink?: string;
   finalSlackPermalink?: string;
@@ -466,7 +466,6 @@ function ExecutionScene({
   telemetry: IncidentTelemetry;
   demo: DemoRecoveryState;
 }) {
-  const demoStep = demo.phase === 'executing' ? demo.executionStep ?? 0 : undefined;
   const running = demo.phase === 'executing' || telemetry.sandbox.status === 'running';
   const repository = telemetry.recovery.repositoryUrl;
   const sandboxName =
@@ -537,19 +536,15 @@ function ExecutionScene({
               ],
             ] as Array<[string, boolean, string | undefined]>
           ).map(([step, done, detail], index, steps) => {
-            const demoDone = demoStep !== undefined && demoStep > index;
-            const demoActive = demoStep !== undefined && demoStep === index;
-            const stageDone = done || demoDone;
-            const active = demoStep === undefined
-              ? running && !done && steps.slice(0, index).every(s => s[1])
-              : demoActive;
+            const active =
+              running && !done && steps.slice(0, index).every(s => s[1]);
             return (
               <li
                 key={step}
                 data-active={active || undefined}
-                data-done={stageDone || undefined}
+                data-done={done || undefined}
               >
-                <span>{stageDone ? '✓' : String(index + 1).padStart(2, '0')}</span>
+                <span>{done ? '✓' : String(index + 1).padStart(2, '0')}</span>
                 <strong>{step}</strong>
                 {detail ? <small>{condense(detail, 34)}</small> : null}
               </li>
@@ -658,9 +653,11 @@ function OutcomeScene({
             <a className="provider-artifact" href={demoRecovery.githubUrl} target="_blank" rel="noreferrer">
               <span>✓</span><div><small>Verified recovery commit</small><strong>GitHub rollback</strong><p>{demoRecovery.revertSha.slice(0, 10)} ↗</p></div>
             </a>
-            <a className="provider-artifact" href={demoRecovery.linearUrl} target="_blank" rel="noreferrer">
-              <span>✓</span><div><small>Permanent guard follow-up</small><strong>Linear ELI-5</strong><p>Open issue ↗</p></div>
-            </a>
+            {demoRecovery.linearUrl ? (
+              <a className="provider-artifact" href={demoRecovery.linearUrl} target="_blank" rel="noreferrer">
+                <span>✓</span><div><small>Permanent guard follow-up</small><strong>Linear {demoRecovery.linearIdentifier ?? 'issue'}</strong><p>Open issue ↗</p></div>
+              </a>
+            ) : null}
           </>
         ) : visibleProviders.length > 0 ? (
           visibleProviders.map(([name, value], index) => (

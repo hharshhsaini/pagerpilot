@@ -283,7 +283,7 @@ describe('authoritative telemetry event ingestion', () => {
         type: 'tool.response',
         created_at: '2026-08-29T21:00:04Z',
         tool_call_id: 'linear-1',
-        content: JSON.stringify({ id: 'ELI-6' }),
+        content: JSON.stringify({ id: 'PAG-6' }),
       },
       {
         type: 'tool.response',
@@ -321,7 +321,7 @@ describe('authoritative telemetry event ingestion', () => {
       },
       closeout: {
         slack: { status: 'success', reference: 'https://slack.test/rca' },
-        linear: { status: 'success', reference: 'ELI-6' },
+        linear: { status: 'success', reference: 'PAG-6' },
         pagerduty: { status: 'success', reference: 'INC-4821' },
       },
       phase: 'resolved',
