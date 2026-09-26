@@ -194,12 +194,8 @@ function resultActions(
         : {}),
     });
   }
-  const issueId = string(payload?.identifier) ?? string(payload?.id);
-  if (
-    call.provider === 'linear' &&
-    issueId !== undefined &&
-    /^[A-Z][A-Z0-9]*-\d+$/.test(issueId)
-  ) {
+  const issueId = string(payload?.id);
+  if (issueId?.startsWith('ELI-')) {
     actions.push({
       type: 'closeout',
       provider: 'linear',
